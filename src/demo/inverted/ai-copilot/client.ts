@@ -11,6 +11,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InnerFrameTransport, PostMessageInnerControl } from '$sdk/transport/postmessage/index.js';
 import { generateSessionId } from '$sdk/utils/helpers.js';
+import OpenAI from 'openai';
 
 // ============================================================================
 // CHAT UI MANAGEMENT
@@ -77,6 +78,16 @@ class ChatUI {
 
   showConnected() {
     this.statusElement.textContent = 'Connected';
+    this.statusElement.style.background = 'rgba(0, 184, 148, 0.8)';
+    this.inputElement.disabled = false;
+    this.sendButton.disabled = false;
+    this.welcomeState.style.display = 'none';
+    this.connectionError.style.display = 'none';
+    this.quickActions.style.display = 'flex';
+  }
+
+  showConnectedWithOpenAI() {
+    this.statusElement.textContent = 'Connected (OpenAI)';
     this.statusElement.style.background = 'rgba(0, 184, 148, 0.8)';
     this.inputElement.disabled = false;
     this.sendButton.disabled = false;
@@ -161,6 +172,7 @@ class ChatUI {
 class CopilotApp {
   private client: Client | null = null;
   private transport: InnerFrameTransport | null = null;
+  private openai: OpenAI | null = null;
   private ui: ChatUI;
   private availableTools: string[] = [];
 
@@ -178,10 +190,28 @@ class CopilotApp {
     console.log('[AI-COPILOT] Initializing...');
     this.ui.showConnecting();
 
+    // Add a small delay to ensure parent is ready
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     try {
+      // Initialize OpenAI client
+      const apiKey = this.getOpenAIApiKey();
+      if (apiKey) {
+        console.log('[AI-COPILOT] OpenAI API key found, initializing client...');
+        this.openai = new OpenAI({
+          apiKey: apiKey,
+          dangerouslyAllowBrowser: true
+        });
+        console.log('[AI-COPILOT] OpenAI client initialized');
+      } else {
+        console.log('[AI-COPILOT] No OpenAI API key provided, falling back to rule-based responses');
+      }
+
+      console.log('[AI-COPILOT] Creating window control...');
       // Create window control for communicating with parent
       const windowControl = new PostMessageInnerControl(['*']); // In production, specify parent origin
       
+      console.log('[AI-COPILOT] Creating transport...');
       // Create transport for inner frame
       this.transport = new InnerFrameTransport(windowControl, {
         requiresVisibleSetup: false,
@@ -189,31 +219,67 @@ class CopilotApp {
         maxProtocolVersion: '1.0'
       });
       
+      console.log('[AI-COPILOT] Preparing to connect...');
       // Prepare to connect
       await this.transport.prepareToConnect();
       
+      console.log('[AI-COPILOT] Creating MCP client...');
       // Create MCP client
       this.client = new Client({
         name: 'ai-copilot',
         version: '1.0.0'
       });
 
+      console.log('[AI-COPILOT] Connecting client to transport...');
       // Connect client to transport
       await this.client.connect(this.transport);
       
+      console.log('[AI-COPILOT] Discovering tools...');
       // Discover available tools
       await this.discoverTools();
       
-      this.ui.showConnected();
-      this.ui.addMessage('system', '🎉 Connected to your dashboard! I can now access your data to help answer questions.');
+      if (this.openai) {
+        this.ui.showConnectedWithOpenAI();
+        this.ui.addMessage('system', '🎉 Connected to your dashboard with OpenAI! I can provide intelligent responses and access your data.');
+      } else {
+        this.ui.showConnected();
+        this.ui.addMessage('system', '🎉 Connected to your dashboard! I can now access your data to help answer questions. Configure OpenAI API key in settings for enhanced responses.');
+      }
       
       console.log('[AI-COPILOT] Successfully connected to parent dashboard');
       
     } catch (error) {
       console.error('[AI-COPILOT] Failed to initialize:', error);
-      this.ui.showDisconnected();
-      this.ui.addMessage('error', '❌ Failed to connect to the dashboard. Please try refreshing the page.');
+      
+      // Show connected state anyway so user can still interact
+      this.ui.showConnected();
+      this.ui.addMessage('system', '⚠️ Connected in limited mode. Some features may not be available. Try refreshing to reconnect fully.');
+      this.ui.addMessage('error', `Connection error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // Clear the transport and client so we fall back to mock responses
+      this.transport = null;
+      this.client = null;
     }
+  }
+
+  private getOpenAIApiKey(): string | null {
+    // Try to get API key from various sources
+    
+    // 1. From localStorage (user can set this in browser console)
+    const storedKey = localStorage.getItem('openai_api_key');
+    if (storedKey) return storedKey;
+    
+    // 2. From URL parameter (for demo purposes)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlKey = urlParams.get('openai_key');
+    if (urlKey) return urlKey;
+    
+    // 3. From environment variable (if available in browser context)
+    // Note: This would typically be set during build time
+    const envKey = (globalThis as any).OPENAI_API_KEY;
+    if (envKey) return envKey;
+    
+    return null;
   }
 
   private async discoverTools() {
@@ -234,15 +300,11 @@ class CopilotApp {
   }
 
   async handleUserMessage(message: string) {
-    if (!this.client) {
-      this.ui.addMessage('error', '❌ Not connected to dashboard. Please try reconnecting.');
-      return;
-    }
-
+    // Handle message even if client is not connected
     this.ui.showTyping();
 
     try {
-      // Simple intent detection based on message content
+      // Process message with available capabilities
       const response = await this.processUserMessage(message);
       this.ui.hideTyping();
       this.ui.addMessage('assistant', response);
@@ -255,6 +317,117 @@ class CopilotApp {
   }
 
   private async processUserMessage(message: string): Promise<string> {
+    // If OpenAI is available, use it for intelligent responses
+    if (this.openai) {
+      return await this.processWithOpenAI(message);
+    }
+    
+    // Fallback to simple rule-based processing
+    return await this.processWithRules(message);
+  }
+
+  private async processWithOpenAI(message: string): Promise<string> {
+    if (!this.openai) {
+      throw new Error('OpenAI client not initialized');
+    }
+
+    try {
+      // Get available tools information
+      const toolsInfo = await this.getToolsInformation();
+      
+      const systemPrompt = `You are an AI assistant embedded in a user dashboard. You can help users by accessing information about their account, projects, and system status.
+
+Available tools:
+${toolsInfo}
+
+Rules:
+1. When a user asks for information that matches one of the available tools, call the appropriate tool
+2. Be conversational and helpful
+3. Format responses nicely with emojis and markdown
+4. If you need to use a tool, explain what you're doing
+5. Always be friendly and professional
+
+Current user message: "${message}"
+
+Analyze the message and determine if you should call any tools to answer it. If so, call the appropriate tool(s) and format the response nicely.`;
+
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000
+      });
+
+      const aiResponse = completion.choices[0]?.message?.content || "I'm sorry, I couldn't process your request.";
+      
+      // Check if the AI response suggests calling a tool
+      const toolCall = this.extractToolCallFromResponse(aiResponse, message);
+      if (toolCall) {
+        const toolResult = await this.callTool(toolCall);
+        
+        // Get a formatted response from OpenAI using the tool result
+        const formatCompletion = await this.openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            { role: "system", content: "You are an AI assistant. Format the following tool result data into a friendly, conversational response with appropriate emojis and formatting. Make it easy to read and helpful." },
+            { role: "user", content: `User asked: "${message}"\n\nTool result: ${toolResult}\n\nFormat this into a nice response:` }
+          ],
+          temperature: 0.7,
+          max_tokens: 800
+        });
+
+        return formatCompletion.choices[0]?.message?.content || toolResult;
+      }
+      
+      return aiResponse;
+      
+    } catch (error) {
+      console.error('[AI-COPILOT] OpenAI error:', error);
+      // Fallback to rule-based processing
+      return await this.processWithRules(message);
+    }
+  }
+
+  private async getToolsInformation(): Promise<string> {
+    if (!this.client) return "No tools available";
+    
+    try {
+      const response = await this.client.listTools();
+      return response.tools.map(tool => 
+        `- ${tool.name}: ${tool.description || 'No description available'}`
+      ).join('\n');
+    } catch (error) {
+      return "Error getting tool information";
+    }
+  }
+
+  private extractToolCallFromResponse(aiResponse: string, userMessage: string): string | null {
+    const message = userMessage.toLowerCase();
+    
+    // Simple intent detection - in a real implementation, you might use function calling
+    if (message.includes('who am i') || message.includes('my info') || message.includes('user info') || message.includes('profile')) {
+      return 'getCurrentUser';
+    }
+    
+    if (message.includes('project') || message.includes('my work')) {
+      return 'getUserProjects';
+    }
+    
+    if (message.includes('system') || message.includes('health') || message.includes('status')) {
+      return 'getSystemHealth';
+    }
+    
+    if (message.includes('team') || message.includes('stats') || message.includes('statistics')) {
+      return 'getTeamStats';
+    }
+    
+    return null;
+  }
+
+  private async processWithRules(message: string): Promise<string> {
     const lowerMessage = message.toLowerCase();
     
     // Intent detection based on keywords
@@ -288,7 +461,8 @@ Try asking one of these questions, or click the quick action buttons below!`;
 
   private async callTool(toolName: string): Promise<string> {
     if (!this.client) {
-      throw new Error('Not connected to dashboard');
+      // Provide mock responses when not connected to MCP
+      return this.getMockToolResponse(toolName);
     }
 
     try {
@@ -307,7 +481,64 @@ Try asking one of these questions, or click the quick action buttons below!`;
       
     } catch (error) {
       console.error(`[AI-COPILOT] Tool call failed for ${toolName}:`, error);
-      throw new Error(`Failed to execute ${toolName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Fall back to mock response
+      return this.getMockToolResponse(toolName);
+    }
+  }
+
+  private getMockToolResponse(toolName: string): string {
+    switch (toolName) {
+      case 'getCurrentUser':
+        return `👤 **Current User Information** (Mock Data)
+
+**Name:** Demo User
+**Email:** demo@example.com
+**Role:** Administrator
+**Department:** Engineering
+**Last Login:** Today at 2:45 PM
+
+**Permissions:** Read, Write, Admin
+
+**Preferences:**
+- Theme: Light
+- Notifications: Enabled
+- Language: English
+
+*Note: This is mock data. Connect to the dashboard for real information.*`;
+
+      case 'getUserProjects':
+        return `📂 **Your Projects** (Mock Data)
+
+• **Project Alpha** (active) - 75% complete, deadline: Next Friday
+• **Project Beta** (on-hold) - 40% complete, deadline: Next month
+• **Project Gamma** (active) - 90% complete, deadline: Tomorrow
+
+*Note: This is mock data. Connect to the dashboard for real project information.*`;
+
+      case 'getSystemHealth':
+        return `🏥 **System Health Report** (Mock Data)
+
+**Overall Health:** 89%
+
+**Service Status:**
+✅ **API Gateway**: healthy (99.9% uptime)
+✅ **Database**: healthy (99.7% uptime)
+⚠️ **File Storage**: warning (97.2% uptime)
+✅ **Analytics**: healthy (99.5% uptime)
+
+*Note: This is mock data. Connect to the dashboard for real system status.*`;
+
+      case 'getTeamStats':
+        return `📊 **Team Statistics** (Mock Data)
+
+**👥 Team Size:** 156 members across all departments
+**🚀 Active Projects:** 24 projects currently in progress
+**✅ Completed This Month:** 8 projects delivered successfully
+
+*Note: This is mock data. Connect to the dashboard for real team statistics.*`;
+
+      default:
+        return `Tool "${toolName}" is not available in mock mode. Please ensure you're connected to the dashboard for full functionality.`;
     }
   }
 
@@ -322,6 +553,68 @@ Try asking one of these questions, or click the quick action buttons below!`;
 }
 
 // ============================================================================
+// GLOBAL FUNCTIONS FOR HTML EVENT HANDLERS
+// ============================================================================
+
+declare global {
+  interface Window {
+    sendMessage: () => void;
+    sendQuickMessage: (message: string) => void;
+    reconnect: () => void;
+    copilotApp: CopilotApp;
+    showConfig: () => void;
+    hideConfig: () => void;
+    saveApiKey: () => void;
+  }
+}
+
+// Configuration panel functions
+window.showConfig = () => {
+  const panel = document.getElementById('config-panel');
+  const input = document.getElementById('api-key-input') as HTMLInputElement;
+  if (panel && input) {
+    // Load current API key if exists
+    const currentKey = localStorage.getItem('openai_api_key');
+    if (currentKey) {
+      input.value = currentKey;
+    }
+    panel.style.display = 'flex';
+  }
+};
+
+window.hideConfig = () => {
+  const panel = document.getElementById('config-panel');
+  if (panel) {
+    panel.style.display = 'none';
+  }
+};
+
+window.saveApiKey = () => {
+  const input = document.getElementById('api-key-input') as HTMLInputElement;
+  if (input) {
+    const apiKey = input.value.trim();
+    if (apiKey) {
+      localStorage.setItem('openai_api_key', apiKey);
+      console.log('[AI-COPILOT] API key saved to localStorage');
+      
+      // Reinitialize the copilot with new API key
+      if (copilotApp) {
+        console.log('[AI-COPILOT] Reconnecting with new API key...');
+        copilotApp.disconnect().then(() => {
+          setTimeout(() => {
+            copilotApp.initialize();
+          }, 1000);
+        });
+      }
+    } else {
+      localStorage.removeItem('openai_api_key');
+      console.log('[AI-COPILOT] API key removed from localStorage');
+    }
+    window.hideConfig();
+  }
+};
+
+// ============================================================================
 // APPLICATION STARTUP
 // ============================================================================
 
@@ -329,8 +622,50 @@ let copilotApp: CopilotApp;
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('[AI-COPILOT] Page loaded, creating application...');
-  copilotApp = new CopilotApp();
-  copilotApp.initialize();
+  console.log('[AI-COPILOT] DOM elements check:', {
+    chatMessages: !!document.getElementById('chat-messages'),
+    chatInput: !!document.getElementById('chat-input'),
+    sendButton: !!document.getElementById('send-button'),
+    connectionStatus: !!document.getElementById('connection-status')
+  });
+  
+  // Add test message listener
+  window.addEventListener('message', (event) => {
+    console.log('[AI-COPILOT] Received message:', event.data);
+    if (event.data?.type === 'test') {
+      console.log('[AI-COPILOT] Responding to test message');
+      (event.source as Window)?.postMessage({
+        type: 'test-response',
+        message: 'Hello from AI Copilot!'
+      }, '*');
+    }
+  });
+  
+  // Send a signal to parent that we're loaded
+  if (window.parent !== window) {
+    console.log('[AI-COPILOT] Sending ready signal to parent');
+    window.parent.postMessage({
+      type: 'copilot-ready',
+      message: 'AI Copilot iframe is ready'
+    }, '*');
+  }
+  
+  try {
+    copilotApp = new CopilotApp();
+    await copilotApp.initialize();
+    console.log('[AI-COPILOT] Application initialized successfully');
+  } catch (error) {
+    console.error('[AI-COPILOT] Failed to initialize application:', error);
+    // Show error in the UI
+    const messageContainer = document.getElementById('chat-messages');
+    if (messageContainer) {
+      messageContainer.innerHTML = `
+        <div style="padding: 1rem; background: #ffe6e6; color: #e74c3c; border-radius: 0.5rem; margin: 1rem;">
+          ❌ Failed to initialize: ${error instanceof Error ? error.message : 'Unknown error'}
+        </div>
+      `;
+    }
+  }
 });
 
 // Cleanup on page unload

@@ -43,17 +43,28 @@ This is a reference implementation for a **proposed new transport** for the Mode
    ```
 
 4. **Open your browser:**
-   - Client: http://localhost:3000
-   - Pi Calculator: http://localhost:3001
+   - Standard Demo: http://localhost:3000
+   - Inverted Demo (with OpenAI): http://localhost:3000/inverted
 
 ## 🎯 Demo Instructions
 
+### Standard Architecture Demo
 1. **Open the client** at http://localhost:3000
 2. **Add the Pi Calculator server** (should be pre-configured):
    - URL: `http://localhost:3001#setup`
 3. **Click "Setup"** to configure the server
 4. **Click "Connect"** to establish MCP connection
 5. **Try the interactive Pi calculation** with Monte Carlo visualization
+
+### Inverted Architecture Demo (AI Copilot)
+1. **Open the inverted demo** at http://localhost:3000/inverted
+2. **The AI copilot loads automatically** in the embedded iframe
+3. **Optional: Configure OpenAI** by clicking the settings (⚙️) button
+4. **Try asking questions** like "Who am I?" or "What are my projects?"
+
+## 🤖 OpenAI Integration
+
+The inverted architecture demo includes an AI copilot powered by OpenAI that can intelligently interact with the user dashboard. See [OPENAI_INTEGRATION.md](./OPENAI_INTEGRATION.md) for detailed information.
 
 ## 📋 What This Demonstrates
 

@@ -308,18 +308,40 @@ async function initializeCopilot() {
   const ui = new DashboardUI();
   ui.showLoading();
 
-  try {
+  // Add a fallback timeout to show the iframe after 5 seconds regardless
+  const fallbackTimeout = setTimeout(() => {
+    console.log('[USER-DASHBOARD] Fallback timeout - showing iframe');
+    ui.showConnected();
+  }, 5000);
+
+  // Add a timeout wrapper to prevent hanging
+  const initializeWithTimeout = async () => {
     console.log('[USER-DASHBOARD] Creating MCP server...');
     const server = createUserDashboardServer();
     
     console.log('[USER-DASHBOARD] Setting up iframe window control...');
     const windowControl = new IframeWindowControl({
       iframe: ui.getIframe(),
-      setVisible: () => {}, // Always visible
+      setVisible: () => {
+        console.log('[USER-DASHBOARD] Iframe set to visible');
+      }, // Always visible
       onError: (error) => {
         console.error('[USER-DASHBOARD] Iframe error:', error);
         ui.showError();
-      }
+      },
+      sandboxMode: 'development' // Use development mode for demo
+    });
+
+    // Add iframe load event listener
+    ui.getIframe().addEventListener('load', () => {
+      console.log('[USER-DASHBOARD] Iframe loaded successfully - showing iframe');
+      clearTimeout(fallbackTimeout);
+      // Show the iframe as soon as it loads, regardless of MCP connection
+      ui.showConnected();
+    });
+    
+    ui.getIframe().addEventListener('error', (error) => {
+      console.error('[USER-DASHBOARD] Iframe failed to load:', error);
     });
 
     console.log('[USER-DASHBOARD] Creating transport...');
@@ -338,18 +360,52 @@ async function initializeCopilot() {
 
     console.log('[USER-DASHBOARD] Navigating to copilot URL...');
     await windowControl.navigate(copilotUrl);
+    console.log('[USER-DASHBOARD] Navigation complete');
+    
+    // Wait for iframe to be fully loaded
+    console.log('[USER-DASHBOARD] Waiting for iframe to fully load...');
+    await new Promise((resolve) => {
+      const iframe = ui.getIframe();
+      if (iframe.contentDocument?.readyState === 'complete') {
+        resolve(undefined);
+      } else {
+        iframe.addEventListener('load', () => resolve(undefined), { once: true });
+      }
+    });
+    
+    // Add additional delay to ensure iframe script is fully initialized
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     console.log('[USER-DASHBOARD] Preparing transport...');
     await transport.prepareToConnect();
+    console.log('[USER-DASHBOARD] Transport prepared');
     
     console.log('[USER-DASHBOARD] Connecting MCP server to transport...');
     await server.connect(transport);
     
     console.log('[USER-DASHBOARD] AI Copilot initialized successfully');
     ui.showConnected();
+  };
+
+  try {
+    // Set a 30 second timeout for initialization
+    await Promise.race([
+      initializeWithTimeout(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Initialization timeout after 30 seconds')), 30000)
+      )
+    ]);
     
   } catch (error) {
+    clearTimeout(fallbackTimeout);
     console.error('[USER-DASHBOARD] Failed to initialize copilot:', error);
+    if (error instanceof Error) {
+      console.error('[USER-DASHBOARD] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+    }
     ui.showError();
   }
 }
@@ -360,6 +416,21 @@ async function initializeCopilot() {
 // Auto-initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   console.log('[USER-DASHBOARD] Page loaded, initializing copilot...');
+  
+  // Listen for copilot ready signal
+  window.addEventListener('message', (event) => {
+    console.log('[USER-DASHBOARD] Received message:', event.data);
+    if (event.data?.type === 'copilot-ready') {
+      console.log('[USER-DASHBOARD] Copilot is ready - ensuring iframe is visible');
+      const iframe = document.getElementById('copilot-iframe') as HTMLIFrameElement;
+      const loading = document.getElementById('loading-state') as HTMLElement;
+      if (iframe && loading) {
+        iframe.style.display = 'block';
+        loading.style.display = 'none';
+      }
+    }
+  });
+  
   initializeCopilot();
 });
 

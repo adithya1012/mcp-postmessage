@@ -264,6 +264,94 @@
         .retry-button:hover {
             background: #c0392b;
         }
+        
+        .config-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .config-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .config-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .config-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e9ecef;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        
+        .config-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+        
+        .config-button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .config-button.primary {
+            background: #6c5ce7;
+            color: white;
+        }
+        
+        .config-button.secondary {
+            background: #e9ecef;
+            color: #2d3436;
+        }
+        
+        .api-key-info {
+            background: #e8f4f8;
+            border: 1px solid #bde4f0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+            color: #2980b9;
+        }
+        
+        .settings-icon {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        
+        .settings-icon:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -275,6 +363,7 @@
                 <p>Your personal assistant with access to your dashboard data</p>
             </div>
             <div class="connection-status" id="connection-status">Connecting...</div>
+            <button class="settings-icon" onclick="showConfig()" title="OpenAI Settings">⚙️</button>
         </div>
         
         <div id="chat-messages" class="chat-messages">
@@ -316,6 +405,33 @@
             <button id="send-button" class="send-button" onclick="sendMessage()" disabled>
                 ➤
             </button>
+        </div>
+    </div>
+    
+    <!-- OpenAI Configuration Panel -->
+    <div class="config-panel" id="config-panel">
+        <div class="config-content">
+            <div class="config-header">
+                <h2>🔧 OpenAI Configuration</h2>
+                <p>Configure your OpenAI API key for enhanced AI responses</p>
+            </div>
+            
+            <div class="api-key-info">
+                💡 <strong>Info:</strong> Your API key is stored locally in your browser and never sent to our servers. 
+                Without an API key, the copilot will use simple rule-based responses.
+            </div>
+            
+            <input 
+                type="password" 
+                id="api-key-input" 
+                class="config-input" 
+                placeholder="sk-..." 
+                />
+            
+            <div class="config-buttons">
+                <button class="config-button secondary" onclick="hideConfig()">Cancel</button>
+                <button class="config-button primary" onclick="saveApiKey()">Save</button>
+            </div>
         </div>
     </div>
     
