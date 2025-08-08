@@ -375,16 +375,34 @@
             </div>
           </div>
 
-          <div class="stats-grid" style="margin-bottom: 2rem;">
-            <div class="stat-card" style="background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%); box-shadow: 0 4px 15px rgba(253, 121, 168, 0.3);">
+          <div class="stats-grid" style="margin-bottom: 2rem">
+            <div
+              class="stat-card"
+              style="
+                background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%);
+                box-shadow: 0 4px 15px rgba(253, 121, 168, 0.3);
+              "
+            >
               <div class="stat-number" id="last-visit">Jan 15, 2025</div>
               <div class="stat-label">Last Visit</div>
             </div>
-            <div class="stat-card" style="background: linear-gradient(135deg, #fdcb6e 0%, #e17055 100%); box-shadow: 0 4px 15px rgba(253, 203, 110, 0.3);">
+            <div
+              class="stat-card"
+              style="
+                background: linear-gradient(135deg, #fdcb6e 0%, #e17055 100%);
+                box-shadow: 0 4px 15px rgba(253, 203, 110, 0.3);
+              "
+            >
               <div class="stat-number" id="allergy-count">2</div>
               <div class="stat-label">Known Allergies</div>
             </div>
-            <div class="stat-card" style="background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);">
+            <div
+              class="stat-card"
+              style="
+                background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+                box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+              "
+            >
               <div class="stat-number" id="next-appointment">Feb 10, 2025</div>
               <div class="stat-label">Next Appointment</div>
             </div>
@@ -393,15 +411,32 @@
           <h3 style="margin: 2rem 0 1rem 0; color: #2d3436; font-size: 1.1rem">
             Allergies & Medications
           </h3>
-          <div id="allergies-list" style="background: #fff5f5; border: 1px solid #fecaca; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1.5rem;">
-            <div style="color: #dc2626; font-weight: 500; margin-bottom: 0.5rem;">⚠️ Allergic to:</div>
-            <div id="allergy-items" style="color: #991b1b;">
-              • Penicillin (Severe)<br>
+          <div
+            id="allergies-list"
+            style="
+              background: #fff5f5;
+              border: 1px solid #fecaca;
+              border-radius: 0.5rem;
+              padding: 1rem;
+              margin-bottom: 1.5rem;
+            "
+          >
+            <div
+              style="color: #dc2626; font-weight: 500; margin-bottom: 0.5rem"
+            >
+              ⚠️ Allergic to:
+            </div>
+            <div id="allergy-items" style="color: #991b1b">
+              • Penicillin (Severe)<br />
               • Shellfish (Moderate)
             </div>
           </div>
 
-          <div id="medications-toggle" class="medications-toggle" onclick="patientDashboard.toggleMedications()">
+          <div
+            id="medications-toggle"
+            class="medications-toggle"
+            onclick="patientDashboard.toggleMedications()"
+          >
             ▼ Current Medications (Click to expand)
           </div>
           <div id="medications-section" class="medications-section">
@@ -410,7 +445,9 @@
             </div>
           </div>
 
-          <h3 style="margin: 1.5rem 0 1rem 0; color: #2d3436; font-size: 1.1rem">
+          <h3
+            style="margin: 1.5rem 0 1rem 0; color: #2d3436; font-size: 1.1rem"
+          >
             Recent Medical History
           </h3>
           <ul class="activity-list" id="medical-history">
@@ -535,7 +572,7 @@
     </div>
 
     <script type="module" src="./server.ts"></script>
-    <script src="./patient-dashboard.js"></script>
+    <script type="module" src="./patient-dashboard.ts"></script>
     <script>
       // Fix footer link to use proper relative URL resolution
       document.addEventListener("DOMContentLoaded", () => {
@@ -549,7 +586,10 @@
         }
 
         // Initialize the patient dashboard
-        if (window.patientDashboard && window.patientDashboard.initializeDashboard) {
+        if (
+          window.patientDashboard &&
+          window.patientDashboard.initializeDashboard
+        ) {
           window.patientDashboard.initializeDashboard();
         }
       });
