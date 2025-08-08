@@ -368,66 +368,96 @@ class CopilotApp {
     }
 
     try {
-      // Get available tools information
+      // Get available tools information with their schemas
       const toolsInfo = await this.getToolsInformation();
+      const availableTools = await this.getAvailableToolsForOpenAI();
 
-      const systemPrompt = `You are an AI assistant embedded in a user dashboard. You can help users by accessing information about their account, projects, and system status.
+      const systemPrompt = `You are an AI assistant embedded in a patient dashboard system. You help healthcare professionals manage patient data and medical records.
 
-Available tools:
+Available tools and their functions:
 ${toolsInfo}
 
 Rules:
-1. When a user asks for information that matches one of the available tools, call the appropriate tool
-2. Be conversational and helpful
-3. Format responses nicely with emojis and markdown
-4. If you need to use a tool, explain what you're doing
-5. Always be friendly and professional
+1. Use the appropriate tools when users request to update patient data, add medical records, or retrieve patient information
+2. Be professional and medical-focused in your responses
+3. Always confirm when data has been successfully updated
+4. Format responses clearly with medical terminology
+5. Include relevant medical context and warnings when appropriate
 
-Current user message: "${message}"
+Analyze the user's request and determine if you need to call any tools to fulfill it.`;
 
-Analyze the message and determine if you should call any tools to answer it. If so, call the appropriate tool(s) and format the response nicely.`;
-
-      const completion = await this.openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: message },
-        ],
-        temperature: 0.7,
-        max_tokens: 1000,
-      });
-
-      const aiResponse =
-        completion.choices[0]?.message?.content ||
-        "I'm sorry, I couldn't process your request.";
-
-      // Check if the AI response suggests calling a tool
-      const toolCall = this.extractToolCallFromResponse(aiResponse, message);
-      if (toolCall) {
-        const toolResult = await this.callTool(toolCall);
-
-        // Get a formatted response from OpenAI using the tool result
-        const formatCompletion = await this.openai.chat.completions.create({
+      // Use function calling if tools are available
+      if (availableTools.length > 0) {
+        const completion = await this.openai.chat.completions.create({
           model: "gpt-3.5-turbo",
           messages: [
-            {
-              role: "system",
-              content:
-                "You are an AI assistant. Format the following tool result data into a friendly, conversational response with appropriate emojis and formatting. Make it easy to read and helpful.",
-            },
-            {
-              role: "user",
-              content: `User asked: "${message}"\n\nTool result: ${toolResult}\n\nFormat this into a nice response:`,
-            },
+            { role: "system", content: systemPrompt },
+            { role: "user", content: message },
           ],
+          functions: availableTools,
+          function_call: "auto",
           temperature: 0.7,
-          max_tokens: 800,
+          max_tokens: 1000,
         });
 
-        return formatCompletion.choices[0]?.message?.content || toolResult;
-      }
+        const choice = completion.choices[0];
 
-      return aiResponse;
+        if (choice?.message?.function_call) {
+          // Execute the function call
+          const functionName = choice.message.function_call.name;
+          const functionArgs = JSON.parse(
+            choice.message.function_call.arguments || "{}"
+          );
+
+          console.log(
+            `[AI-COPILOT] Calling tool: ${functionName} with args:`,
+            functionArgs
+          );
+          const toolResult = await this.callTool(functionName, functionArgs);
+
+          // Generate a natural language response based on the tool result
+          const formatCompletion = await this.openai.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are a medical AI assistant. Format the tool result into a clear, professional medical response with appropriate medical terminology and formatting.",
+              },
+              {
+                role: "user",
+                content: `The user requested: "${message}"\n\nTool executed: ${functionName}\nResult: ${toolResult}\n\nProvide a professional medical response:`,
+              },
+            ],
+            temperature: 0.3,
+            max_tokens: 800,
+          });
+
+          return formatCompletion.choices[0]?.message?.content || toolResult;
+        } else {
+          // No function call needed, return the AI response
+          return (
+            choice?.message?.content ||
+            "I'm here to help with patient data management. What would you like me to do?"
+          );
+        }
+      } else {
+        // No tools available, provide basic response
+        const completion = await this.openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: message },
+          ],
+          temperature: 0.7,
+          max_tokens: 1000,
+        });
+
+        return (
+          completion.choices[0]?.message?.content ||
+          "I'm here to help with patient data management. What would you like me to do?"
+        );
+      }
     } catch (error) {
       console.error("[AI-COPILOT] OpenAI error:", error);
       // Fallback to rule-based processing
@@ -436,7 +466,8 @@ Analyze the message and determine if you should call any tools to answer it. If 
   }
 
   private async getToolsInformation(): Promise<string> {
-    if (!this.client) return "No tools available";
+    if (!this.client)
+      return "No tools available - not connected to patient dashboard";
 
     try {
       const response = await this.client.listTools();
@@ -447,104 +478,177 @@ Analyze the message and determine if you should call any tools to answer it. If 
         )
         .join("\n");
     } catch (error) {
+      console.error(error);
       return "Error getting tool information";
     }
   }
 
-  private extractToolCallFromResponse(
-    aiResponse: string,
-    userMessage: string
-  ): string | null {
-    const message = userMessage.toLowerCase();
+  private async getAvailableToolsForOpenAI(): Promise<any[]> {
+    if (!this.client) return [];
 
-    // Simple intent detection - in a real implementation, you might use function calling
-    if (
-      message.includes("who am i") ||
-      message.includes("my info") ||
-      message.includes("user info") ||
-      message.includes("profile")
-    ) {
-      return "getCurrentUser";
+    try {
+      const response = await this.client.listTools();
+
+      return response.tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description || `Execute ${tool.name} tool`,
+        parameters: tool.inputSchema || {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      }));
+    } catch (error) {
+      console.error("[AI-COPILOT] Error getting tools for OpenAI:", error);
+      return [];
     }
-
-    if (message.includes("project") || message.includes("my work")) {
-      return "getUserProjects";
-    }
-
-    if (
-      message.includes("system") ||
-      message.includes("health") ||
-      message.includes("status")
-    ) {
-      return "getSystemHealth";
-    }
-
-    if (
-      message.includes("team") ||
-      message.includes("stats") ||
-      message.includes("statistics")
-    ) {
-      return "getTeamStats";
-    }
-
-    return null;
   }
 
   private async processWithRules(message: string): Promise<string> {
     const lowerMessage = message.toLowerCase();
 
-    // Intent detection based on keywords
-    if (
-      lowerMessage.includes("who am i") ||
-      lowerMessage.includes("my info") ||
-      lowerMessage.includes("user info")
-    ) {
-      return await this.callTool("getCurrentUser");
-    }
-
-    if (lowerMessage.includes("project") || lowerMessage.includes("my work")) {
-      return await this.callTool("getUserProjects");
-    }
-
-    if (
-      lowerMessage.includes("system") ||
-      lowerMessage.includes("health") ||
-      lowerMessage.includes("status")
-    ) {
-      return await this.callTool("getSystemHealth");
-    }
-
-    if (
-      lowerMessage.includes("team") ||
-      lowerMessage.includes("stats") ||
-      lowerMessage.includes("statistics")
-    ) {
-      return await this.callTool("getTeamStats");
+    // Dynamic intent detection based on available tools and keywords
+    const toolCallResult = await this.detectIntentAndCallTool(lowerMessage);
+    if (toolCallResult) {
+      return toolCallResult;
     }
 
     // Default helpful response with available actions
-    return `I'm here to help you with information from your dashboard! 
+    const availableToolsText = await this.getToolsInformation();
 
-I can help you with:
-• 👤 **User information** - Ask "Who am I?" to see your profile
-• 📂 **Your projects** - Ask "What are my current projects?" 
-• 🏥 **System health** - Ask "What is the system health?"
-• 📊 **Team statistics** - Ask "Show me team statistics"
+    return `I'm here to help you manage patient data and medical records! 
 
-Try asking one of these questions, or click the quick action buttons below!`;
+**Available Actions:**
+${availableToolsText}
+
+You can ask me to:
+• Update patient vital signs (blood pressure, blood sugar)
+• Add new medications or allergies
+• Schedule appointments
+• View patient information
+• Add medical history entries
+
+Try asking something like "Update blood pressure to 130/85" or "Add a new medication" or click the quick action buttons below!`;
   }
 
-  private async callTool(toolName: string): Promise<string> {
+  private async detectIntentAndCallTool(
+    message: string
+  ): Promise<string | null> {
+    if (!this.client) return null;
+
+    try {
+      // Get available tools to match against
+      const response = await this.client.listTools();
+      const tools = response.tools;
+
+      // Intent detection based on keywords and available tools
+      for (const tool of tools) {
+        const toolName = tool.name.toLowerCase();
+
+        // Blood pressure related
+        if (
+          toolName.includes("bloodpressure") &&
+          (message.includes("blood pressure") ||
+            message.includes("bp") ||
+            message.includes("systolic") ||
+            message.includes("diastolic"))
+        ) {
+          // Try to extract numbers from the message
+          const bpMatch = message.match(/(\d{2,3})[\/\s]+(\d{2,3})/);
+          if (bpMatch) {
+            const systolic = parseInt(bpMatch[1]);
+            const diastolic = parseInt(bpMatch[2]);
+            return await this.callTool(tool.name, { systolic, diastolic });
+          } else {
+            return "Please specify blood pressure values (e.g., '120/80' or 'Update blood pressure to 130/85')";
+          }
+        }
+
+        // Blood sugar related
+        if (
+          toolName.includes("bloodsugar") &&
+          (message.includes("blood sugar") ||
+            message.includes("glucose") ||
+            message.includes("sugar level"))
+        ) {
+          const sugarMatch = message.match(/(\d{2,3})/);
+          if (sugarMatch) {
+            const value = parseInt(sugarMatch[1]);
+            return await this.callTool(tool.name, { value });
+          } else {
+            return "Please specify a blood sugar value (e.g., 'Update blood sugar to 95')";
+          }
+        }
+
+        // Patient context/information
+        if (toolName.includes("context") || toolName.includes("info")) {
+          if (
+            message.includes("who") ||
+            message.includes("patient info") ||
+            message.includes("show me") ||
+            message.includes("current patient")
+          ) {
+            return await this.callTool(tool.name);
+          }
+        }
+
+        // Medication related
+        if (
+          toolName.includes("medication") &&
+          (message.includes("medication") ||
+            message.includes("medicine") ||
+            message.includes("drug") ||
+            message.includes("prescription"))
+        ) {
+          // Simple medication parsing - in real app, you'd want more sophisticated NLP
+          if (
+            message.includes("add") ||
+            message.includes("new") ||
+            message.includes("prescribe")
+          ) {
+            return "To add a medication, please specify: medication name, dosage, and frequency. For example: 'Add Lisinopril 10mg daily'";
+          }
+        }
+
+        // Allergy related
+        if (
+          toolName.includes("allerg") &&
+          (message.includes("allerg") || message.includes("reaction"))
+        ) {
+          if (message.includes("add") || message.includes("update")) {
+            return "To update allergies, please specify the allergy name and severity (Mild/Moderate/Severe). For example: 'Add penicillin allergy, severe'";
+          }
+        }
+
+        // Appointment related
+        if (
+          toolName.includes("appointment") &&
+          (message.includes("appointment") ||
+            message.includes("schedule") ||
+            message.includes("visit"))
+        ) {
+          return "Please specify the appointment date. For example: 'Schedule next appointment for Feb 15, 2025'";
+        }
+      }
+
+      return null; // No tool matched
+    } catch (error) {
+      console.error("[AI-COPILOT] Error in intent detection:", error);
+      return null;
+    }
+  }
+
+  private async callTool(toolName: string, args: any = {}): Promise<string> {
     if (!this.client) {
       // Provide mock responses when not connected to MCP
       return this.getMockToolResponse(toolName);
     }
 
     try {
-      console.log(`[AI-COPILOT] Calling tool: ${toolName}`);
+      console.log(`[AI-COPILOT] Calling tool: ${toolName} with args:`, args);
       const result = await this.client.callTool({
         name: toolName,
-        arguments: {},
+        arguments: args,
       });
 
       // Extract text content from the result
@@ -561,59 +665,90 @@ Try asking one of these questions, or click the quick action buttons below!`;
   }
 
   private getMockToolResponse(toolName: string): string {
-    switch (toolName) {
-      case "getCurrentUser":
-        return `👤 **Current User Information** (Mock Data)
+    const lowerToolName = toolName.toLowerCase();
 
-**Name:** Demo User
-**Email:** demo@example.com
-**Role:** Administrator
-**Department:** Engineering
-**Last Login:** Today at 2:45 PM
+    if (lowerToolName.includes("bloodpressure")) {
+      return `🩺 **Blood Pressure Updated** (Mock Data)
 
-**Permissions:** Read, Write, Admin
+**New Reading:** 120/80 mmHg
 
-**Preferences:**
-- Theme: Light
-- Notifications: Enabled
-- Language: English
+The blood pressure has been recorded and added to the patient's medical history. The dashboard has been updated to reflect this new measurement.
 
-*Note: This is mock data. Connect to the dashboard for real information.*`;
-
-      case "getUserProjects":
-        return `📂 **Your Projects** (Mock Data)
-
-• **Project Alpha** (active) - 75% complete, deadline: Next Friday
-• **Project Beta** (on-hold) - 40% complete, deadline: Next month
-• **Project Gamma** (active) - 90% complete, deadline: Tomorrow
-
-*Note: This is mock data. Connect to the dashboard for real project information.*`;
-
-      case "getSystemHealth":
-        return `🏥 **System Health Report** (Mock Data)
-
-**Overall Health:** 89%
-
-**Service Status:**
-✅ **API Gateway**: healthy (99.9% uptime)
-✅ **Database**: healthy (99.7% uptime)
-⚠️ **File Storage**: warning (97.2% uptime)
-✅ **Analytics**: healthy (99.5% uptime)
-
-*Note: This is mock data. Connect to the dashboard for real system status.*`;
-
-      case "getTeamStats":
-        return `📊 **Team Statistics** (Mock Data)
-
-**👥 Team Size:** 156 members across all departments
-**🚀 Active Projects:** 24 projects currently in progress
-**✅ Completed This Month:** 8 projects delivered successfully
-
-*Note: This is mock data. Connect to the dashboard for real team statistics.*`;
-
-      default:
-        return `Tool "${toolName}" is not available in mock mode. Please ensure you're connected to the dashboard for full functionality.`;
+*Note: This is mock data. Connect to the dashboard for real functionality.*`;
     }
+
+    if (lowerToolName.includes("bloodsugar")) {
+      return `📊 **Blood Sugar Updated** (Mock Data)
+
+**New Reading:** 95 mg/dL (Normal)
+
+The blood sugar level has been recorded and added to the patient's medical history. The dashboard has been updated with this new measurement.
+
+*Note: This is mock data. Connect to the dashboard for real functionality.*`;
+    }
+
+    if (lowerToolName.includes("context") || lowerToolName.includes("info")) {
+      return `� **Current Patient Information** (Mock Data)
+
+**Name:** John Peterson
+**Patient ID:** PT-2024-001
+**DOB:** March 15, 1985 (Age: 40)
+
+**Vital Signs:**
+- **Blood Pressure:** 120/80 mmHg
+- **Blood Sugar:** 95 mg/dL
+
+**Visit Information:**
+- **Last Visit:** Jan 15, 2025
+- **Total Visits:** 12
+- **Next Appointment:** Feb 10, 2025
+
+**Allergies:** Penicillin (Severe), Shellfish (Moderate)
+
+**Current Medications:** Lisinopril 10mg daily, Metformin 500mg twice daily
+
+*Note: This is mock data. Connect to the dashboard for real patient information.*`;
+    }
+
+    if (lowerToolName.includes("medication")) {
+      return `💊 **Medication Added** (Mock Data)
+
+**Medication:** Sample Medication
+**Dosage:** As specified
+**Frequency:** As prescribed
+
+The medication has been added to the patient's prescription list and recorded in their medical history.
+
+*Note: This is mock data. Connect to the dashboard for real functionality.*`;
+    }
+
+    if (lowerToolName.includes("allerg")) {
+      return `🚨 **Allergies Updated** (Mock Data)
+
+The patient's allergy information has been updated in the dashboard. Medical staff will be alerted to these allergies during treatment.
+
+*Note: This is mock data. Connect to the dashboard for real functionality.*`;
+    }
+
+    if (lowerToolName.includes("appointment")) {
+      return `�️ **Appointment Scheduled** (Mock Data)
+
+The patient's next appointment has been successfully scheduled and updated in the dashboard.
+
+*Note: This is mock data. Connect to the dashboard for real functionality.*`;
+    }
+
+    if (lowerToolName.includes("history")) {
+      return `📝 **Medical History Entry Added** (Mock Data)
+
+The entry has been added to the patient's medical history timeline and will be visible in the dashboard.
+
+*Note: This is mock data. Connect to the dashboard for real functionality.*`;
+    }
+
+    return `Tool "${toolName}" executed in mock mode. Please ensure you're connected to the patient dashboard for full functionality.
+
+*Note: This is mock data. Connect to the dashboard for real functionality.*`;
   }
 
   async disconnect() {

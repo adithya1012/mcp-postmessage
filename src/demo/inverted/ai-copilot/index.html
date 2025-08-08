@@ -372,10 +372,10 @@
   <body>
     <div class="chat-container">
       <div class="chat-header">
-        <div class="copilot-icon">🤖</div>
+        <div class="copilot-icon">🏥</div>
         <div class="header-info">
-          <h1>AI Copilot</h1>
-          <p>Your personal assistant with access to your dashboard data</p>
+          <h1>Medical AI Assistant</h1>
+          <p>Your intelligent assistant for patient data management</p>
         </div>
         <div class="connection-status" id="connection-status">
           Connecting...
@@ -391,13 +391,14 @@
 
       <div id="chat-messages" class="chat-messages">
         <div id="welcome-state" class="welcome-message">
-          <div class="welcome-icon">💭</div>
+          <div class="welcome-icon">🏥</div>
           <div>
-            Hi! I'm your AI assistant. I can help you with information about
-            your projects, team, and system status.
+            Hi! I'm your Medical AI Assistant. I can help you manage patient
+            data, update vital signs, and access medical records.
           </div>
           <div style="margin-top: 1rem; font-size: 0.9rem">
-            Try asking me "Who am I?" or "What are my current projects?"
+            Try asking me "Show patient info" or "Update blood pressure to
+            120/80"
           </div>
         </div>
 
@@ -406,9 +407,9 @@
           class="connection-error"
           style="display: none"
         >
-          <div>❌ Unable to connect to the dashboard</div>
+          <div>❌ Unable to connect to the patient dashboard</div>
           <div style="font-size: 0.9rem; margin-top: 0.5rem">
-            I can't access your data right now. Please check your connection.
+            I can't access patient data right now. Please check your connection.
           </div>
           <button class="retry-button" onclick="reconnect()">
             Retry Connection
@@ -425,26 +426,29 @@
       </div>
 
       <div class="quick-actions" id="quick-actions" style="display: none">
-        <button class="quick-action" onclick="sendQuickMessage('Who am I?')">
-          👤 Who am I?
+        <button
+          class="quick-action"
+          onclick="sendQuickMessage('Show patient information')"
+        >
+          👤 Patient Info
         </button>
         <button
           class="quick-action"
-          onclick="sendQuickMessage('What are my current projects?')"
+          onclick="sendQuickMessage('Update blood pressure to 120/80')"
         >
-          📂 My Projects
+          🩺 Blood Pressure
         </button>
         <button
           class="quick-action"
-          onclick="sendQuickMessage('What is the system health?')"
+          onclick="sendQuickMessage('Update blood sugar to 95')"
         >
-          🏥 System Health
+          📊 Blood Sugar
         </button>
         <button
           class="quick-action"
-          onclick="sendQuickMessage('Show me team statistics')"
+          onclick="sendQuickMessage('Add new medication')"
         >
-          📊 Team Stats
+          � Add Medication
         </button>
       </div>
 
@@ -452,7 +456,7 @@
         <textarea
           id="chat-input"
           class="chat-input"
-          placeholder="Ask me about your projects, team, or system status..."
+          placeholder="Ask me about patient data, vital signs, or medical records..."
           rows="1"
           disabled
         ></textarea>
