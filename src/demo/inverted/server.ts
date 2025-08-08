@@ -1,17 +1,20 @@
 /**
  * User Dashboard - Inverted Architecture Demo
- * 
+ *
  * This demonstrates an MCP Server running in the OUTER FRAME that embeds
  * an MCP Client in an iframe. The server provides tools that give the
  * client access to user data and application context.
- * 
+ *
  * Architecture: Outer Frame MCP Server + Inner Frame MCP Client
  */
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z } from 'zod';
-import { OuterFrameTransport, IframeWindowControl } from '$sdk/transport/postmessage/index.js';
-import { generateSessionId } from '$sdk/utils/helpers.js';
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import {
+  OuterFrameTransport,
+  IframeWindowControl,
+} from "$sdk/transport/postmessage/index.js";
+import { generateSessionId } from "$sdk/utils/helpers.js";
 
 // ============================================================================
 // USER DATA SERVICE
@@ -27,7 +30,7 @@ interface UserProfile {
   lastLogin: string;
   permissions: string[];
   preferences: {
-    theme: 'light' | 'dark';
+    theme: "light" | "dark";
     notifications: boolean;
     language: string;
   };
@@ -36,7 +39,7 @@ interface UserProfile {
 interface ProjectInfo {
   id: string;
   name: string;
-  status: 'active' | 'completed' | 'on-hold';
+  status: "active" | "completed" | "on-hold";
   progress: number;
   team: string[];
   deadline: string;
@@ -44,46 +47,46 @@ interface ProjectInfo {
 
 class UserDataService {
   private static readonly MOCK_USER: UserProfile = {
-    id: 'user-001',
-    name: 'Alice Johnson',
-    email: 'alice.johnson@company.com',
-    role: 'Administrator',
-    department: 'Engineering',
-    avatar: 'A',
-    lastLogin: 'Today at 2:45 PM',
-    permissions: ['read', 'write', 'admin', 'manage-users', 'view-analytics'],
+    id: "user-001",
+    name: "Alice Johnson",
+    email: "alice.johnson@company.com",
+    role: "Administrator",
+    department: "Engineering",
+    avatar: "A",
+    lastLogin: "Today at 2:45 PM",
+    permissions: ["read", "write", "admin", "manage-users", "view-analytics"],
     preferences: {
-      theme: 'light',
+      theme: "light",
       notifications: true,
-      language: 'en-US'
-    }
+      language: "en-US",
+    },
   };
 
   private static readonly MOCK_PROJECTS: ProjectInfo[] = [
     {
-      id: 'proj-001',
-      name: 'Q4 Platform Redesign',
-      status: 'active',
+      id: "proj-001",
+      name: "Q4 Platform Redesign",
+      status: "active",
       progress: 75,
-      team: ['Alice', 'Bob', 'Carol'],
-      deadline: '2024-12-15'
+      team: ["Alice", "Bob", "Carol"],
+      deadline: "2024-12-15",
     },
     {
-      id: 'proj-002', 
-      name: 'API v3 Migration',
-      status: 'active',
+      id: "proj-002",
+      name: "API v3 Migration",
+      status: "active",
       progress: 45,
-      team: ['Alice', 'David', 'Eve'],
-      deadline: '2024-11-30'
+      team: ["Alice", "David", "Eve"],
+      deadline: "2024-11-30",
     },
     {
-      id: 'proj-003',
-      name: 'Mobile App Launch',
-      status: 'on-hold',
+      id: "proj-003",
+      name: "Mobile App Launch",
+      status: "on-hold",
       progress: 20,
-      team: ['Frank', 'Grace'],
-      deadline: '2025-01-31'
-    }
+      team: ["Frank", "Grace"],
+      deadline: "2025-01-31",
+    },
   ];
 
   static getCurrentUser(): UserProfile {
@@ -91,21 +94,27 @@ class UserDataService {
   }
 
   static getUserProjects(): ProjectInfo[] {
-    return this.MOCK_PROJECTS.filter(p => p.team.includes(this.MOCK_USER.name));
+    return this.MOCK_PROJECTS.filter((p) =>
+      p.team.includes(this.MOCK_USER.name)
+    );
   }
 
   static getSystemHealth(): {
     overall: number;
-    services: { name: string; status: 'healthy' | 'warning' | 'error'; uptime: number }[];
+    services: {
+      name: string;
+      status: "healthy" | "warning" | "error";
+      uptime: number;
+    }[];
   } {
     return {
       overall: 89,
       services: [
-        { name: 'API Gateway', status: 'healthy', uptime: 99.9 },
-        { name: 'Database', status: 'healthy', uptime: 99.7 },
-        { name: 'File Storage', status: 'warning', uptime: 97.2 },
-        { name: 'Analytics', status: 'healthy', uptime: 99.5 }
-      ]
+        { name: "API Gateway", status: "healthy", uptime: 99.9 },
+        { name: "Database", status: "healthy", uptime: 99.7 },
+        { name: "File Storage", status: "warning", uptime: 97.2 },
+        { name: "Analytics", status: "healthy", uptime: 99.5 },
+      ],
     };
   }
 
@@ -117,7 +126,7 @@ class UserDataService {
     return {
       totalMembers: 156,
       activeProjects: 24,
-      completedThisMonth: 8
+      completedThisMonth: 8,
     };
   }
 }
@@ -128,25 +137,26 @@ class UserDataService {
 
 function createUserDashboardServer(): McpServer {
   const server = new McpServer({
-    name: 'user-dashboard',
-    version: '1.0.0',
+    name: "user-dashboard",
+    version: "1.0.0",
   });
 
   // Tool: Get current user information
   server.registerTool(
-    'getCurrentUser',
+    "getCurrentUser",
     {
-      title: 'Get Current User',
-      description: 'Get information about the currently logged in user',
-      inputSchema: {}
+      title: "Get Current User",
+      description: "Get information about the currently logged in user",
+      inputSchema: {},
     },
     async () => {
       const user = UserDataService.getCurrentUser();
-      
+
       return {
-        content: [{
-          type: 'text',
-          text: `👤 **Current User Information**
+        content: [
+          {
+            type: "text",
+            text: `👤 **Current User Information**
 
 **Name:** ${user.name}
 **Email:** ${user.email}
@@ -154,99 +164,135 @@ function createUserDashboardServer(): McpServer {
 **Department:** ${user.department}
 **Last Login:** ${user.lastLogin}
 
-**Permissions:** ${user.permissions.join(', ')}
+**Permissions:** ${user.permissions.join(", ")}
 
 **Preferences:**
 - Theme: ${user.preferences.theme}
-- Notifications: ${user.preferences.notifications ? 'Enabled' : 'Disabled'}
-- Language: ${user.preferences.language}`
-        }]
+- Notifications: ${user.preferences.notifications ? "Enabled" : "Disabled"}
+- Language: ${user.preferences.language}`,
+          },
+        ],
       };
     }
   );
 
   // Tool: Get user's projects
   server.registerTool(
-    'getUserProjects',
+    "getUserProjects",
     {
-      title: 'Get User Projects',
-      description: 'Get all projects assigned to the current user',
-      inputSchema: {}
+      title: "Get User Projects",
+      description: "Get all projects assigned to the current user",
+      inputSchema: {},
     },
     async () => {
       const projects = UserDataService.getUserProjects();
-      
-      const projectList = projects.map(p => 
-        `• **${p.name}** (${p.status}) - ${p.progress}% complete, deadline: ${p.deadline}`
-      ).join('\n');
-      
+
+      const projectList = projects
+        .map(
+          (p) =>
+            `• **${p.name}** (${p.status}) - ${p.progress}% complete, deadline: ${p.deadline}`
+        )
+        .join("\n");
+
       return {
-        content: [{
-          type: 'text',
-          text: `📂 **Your Projects** (${projects.length} total)
+        content: [
+          {
+            type: "text",
+            text: `📂 **Your Projects** (${projects.length} total)
 
 ${projectList}
 
-You can ask me about specific project details or request updates on any of these projects.`
-        }]
+You can ask me about specific project details or request updates on any of these projects.`,
+          },
+        ],
       };
     }
   );
 
   // Tool: Get system health
   server.registerTool(
-    'getSystemHealth',
+    "getSystemHealth",
     {
-      title: 'Get System Health',
-      description: 'Get current system status and health metrics',
-      inputSchema: {}
+      title: "Get System Health",
+      description: "Get current system status and health metrics",
+      inputSchema: {},
     },
     async () => {
       const health = UserDataService.getSystemHealth();
-      
-      const serviceList = health.services.map(s => {
-        const icon = s.status === 'healthy' ? '✅' : s.status === 'warning' ? '⚠️' : '❌';
-        return `${icon} **${s.name}**: ${s.status} (${s.uptime}% uptime)`;
-      }).join('\n');
-      
+
+      const serviceList = health.services
+        .map((s) => {
+          const icon =
+            s.status === "healthy"
+              ? "✅"
+              : s.status === "warning"
+              ? "⚠️"
+              : "❌";
+          return `${icon} **${s.name}**: ${s.status} (${s.uptime}% uptime)`;
+        })
+        .join("\n");
+
       return {
-        content: [{
-          type: 'text',
-          text: `🏥 **System Health Report**
+        content: [
+          {
+            type: "text",
+            text: `🏥 **System Health Report**
 
 **Overall Health:** ${health.overall}%
 
 **Service Status:**
 ${serviceList}
 
-All critical systems are operational. The File Storage service is experiencing minor performance issues but remains functional.`
-        }]
+All critical systems are operational. The File Storage service is experiencing minor performance issues but remains functional.`,
+          },
+        ],
       };
     }
   );
 
   // Tool: Get team statistics
   server.registerTool(
-    'getTeamStats',
+    "getTeamStats",
     {
-      title: 'Get Team Statistics',
-      description: 'Get statistics about team size, projects, and recent activity',
-      inputSchema: {}
+      title: "Get Team Statistics",
+      description:
+        "Get statistics about team size, projects, and recent activity",
+      inputSchema: {},
     },
     async () => {
       const stats = UserDataService.getTeamStats();
-      
+
       return {
-        content: [{
-          type: 'text',
-          text: `📊 **Team Statistics**
+        content: [
+          {
+            type: "text",
+            text: `📊 **Team Statistics**
 
 **👥 Team Size:** ${stats.totalMembers} members across all departments
 **🚀 Active Projects:** ${stats.activeProjects} projects currently in progress
 **✅ Completed This Month:** ${stats.completedThisMonth} projects delivered successfully
 
-The team is performing well with a steady completion rate and healthy project pipeline.`
-        }]
+The team is performing well with a steady completion rate and healthy project pipeline.`,
+          },
+        ],
+      };
+    }
+  );
+  server.registerTool(
+    "addtwonum",
+    {
+      title: "Add two numbers",
+      description: "Add two integer numbers",
+      inputSchema: { a: z.number(), b: z.number() },
+    },
+    async ({ a, b }) => {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Sum of two num ${a + b}`,
+          },
+        ],
       };
     }
   );
@@ -263,36 +309,42 @@ class DashboardUI {
   private statusElement: HTMLElement;
   private loadingElement: HTMLElement;
   private errorElement: HTMLElement;
-  
+
   constructor() {
-    this.copilotIframe = document.getElementById('copilot-iframe') as HTMLIFrameElement;
-    this.statusElement = document.getElementById('copilot-status') as HTMLElement;
-    this.loadingElement = document.getElementById('loading-state') as HTMLElement;
-    this.errorElement = document.getElementById('error-state') as HTMLElement;
+    this.copilotIframe = document.getElementById(
+      "copilot-iframe"
+    ) as HTMLIFrameElement;
+    this.statusElement = document.getElementById(
+      "copilot-status"
+    ) as HTMLElement;
+    this.loadingElement = document.getElementById(
+      "loading-state"
+    ) as HTMLElement;
+    this.errorElement = document.getElementById("error-state") as HTMLElement;
   }
 
   showLoading() {
-    this.copilotIframe.style.display = 'none';
-    this.loadingElement.style.display = 'flex';
-    this.errorElement.style.display = 'none';
-    this.statusElement.textContent = 'Connecting...';
-    this.statusElement.style.background = '#f39c12';
+    this.copilotIframe.style.display = "none";
+    this.loadingElement.style.display = "flex";
+    this.errorElement.style.display = "none";
+    this.statusElement.textContent = "Connecting...";
+    this.statusElement.style.background = "#f39c12";
   }
 
   showConnected() {
-    this.copilotIframe.style.display = 'block';
-    this.loadingElement.style.display = 'none';
-    this.errorElement.style.display = 'none';
-    this.statusElement.textContent = 'Connected';
-    this.statusElement.style.background = '#00b894';
+    this.copilotIframe.style.display = "block";
+    this.loadingElement.style.display = "none";
+    this.errorElement.style.display = "none";
+    this.statusElement.textContent = "Connected";
+    this.statusElement.style.background = "#00b894";
   }
 
   showError() {
-    this.copilotIframe.style.display = 'none';
-    this.loadingElement.style.display = 'none';
-    this.errorElement.style.display = 'flex';
-    this.statusElement.textContent = 'Disconnected';
-    this.statusElement.style.background = '#e17055';
+    this.copilotIframe.style.display = "none";
+    this.loadingElement.style.display = "none";
+    this.errorElement.style.display = "flex";
+    this.statusElement.textContent = "Disconnected";
+    this.statusElement.style.background = "#e17055";
   }
 
   getIframe(): HTMLIFrameElement {
@@ -310,80 +362,86 @@ async function initializeCopilot() {
 
   // Add a fallback timeout to show the iframe after 5 seconds regardless
   const fallbackTimeout = setTimeout(() => {
-    console.log('[USER-DASHBOARD] Fallback timeout - showing iframe');
+    console.log("[USER-DASHBOARD] Fallback timeout - showing iframe");
     ui.showConnected();
   }, 5000);
 
   // Add a timeout wrapper to prevent hanging
   const initializeWithTimeout = async () => {
-    console.log('[USER-DASHBOARD] Creating MCP server...');
+    console.log("[USER-DASHBOARD] Creating MCP server...");
     const server = createUserDashboardServer();
-    
-    console.log('[USER-DASHBOARD] Setting up iframe window control...');
+
+    console.log("[USER-DASHBOARD] Setting up iframe window control...");
     const windowControl = new IframeWindowControl({
       iframe: ui.getIframe(),
       setVisible: () => {
-        console.log('[USER-DASHBOARD] Iframe set to visible');
+        console.log("[USER-DASHBOARD] Iframe set to visible");
       }, // Always visible
       onError: (error) => {
-        console.error('[USER-DASHBOARD] Iframe error:', error);
+        console.error("[USER-DASHBOARD] Iframe error:", error);
         ui.showError();
       },
-      sandboxMode: 'development' // Use development mode for demo
+      sandboxMode: "development", // Use development mode for demo
     });
 
     // Add iframe load event listener
-    ui.getIframe().addEventListener('load', () => {
-      console.log('[USER-DASHBOARD] Iframe loaded successfully - showing iframe');
+    ui.getIframe().addEventListener("load", () => {
+      console.log(
+        "[USER-DASHBOARD] Iframe loaded successfully - showing iframe"
+      );
       clearTimeout(fallbackTimeout);
       // Show the iframe as soon as it loads, regardless of MCP connection
       ui.showConnected();
     });
-    
-    ui.getIframe().addEventListener('error', (error) => {
-      console.error('[USER-DASHBOARD] Iframe failed to load:', error);
+
+    ui.getIframe().addEventListener("error", (error) => {
+      console.error("[USER-DASHBOARD] Iframe failed to load:", error);
     });
 
-    console.log('[USER-DASHBOARD] Creating transport...');
-    console.log('[USER-DASHBOARD] Current location:', window.location.href);
-    
+    console.log("[USER-DASHBOARD] Creating transport...");
+    console.log("[USER-DASHBOARD] Current location:", window.location.href);
+
     // Fix URL resolution by adding trailing slash if it doesn't end with one
-    const baseUrl = window.location.href.endsWith('/') ? window.location.href : window.location.href + '/';
-    const copilotUrl = new URL('ai-copilot', baseUrl).href;
-    console.log('[USER-DASHBOARD] Base URL:', baseUrl);
-    console.log('[USER-DASHBOARD] Copilot URL:', copilotUrl);
-    
+    const baseUrl = window.location.href.endsWith("/")
+      ? window.location.href
+      : window.location.href + "/";
+    const copilotUrl = new URL("ai-copilot", baseUrl).href;
+    console.log("[USER-DASHBOARD] Base URL:", baseUrl);
+    console.log("[USER-DASHBOARD] Copilot URL:", copilotUrl);
+
     const transport = new OuterFrameTransport(windowControl, {
       serverUrl: copilotUrl,
-      sessionId: generateSessionId()
+      sessionId: generateSessionId(),
     });
 
-    console.log('[USER-DASHBOARD] Navigating to copilot URL...');
+    console.log("[USER-DASHBOARD] Navigating to copilot URL...");
     await windowControl.navigate(copilotUrl);
-    console.log('[USER-DASHBOARD] Navigation complete');
-    
+    console.log("[USER-DASHBOARD] Navigation complete");
+
     // Wait for iframe to be fully loaded
-    console.log('[USER-DASHBOARD] Waiting for iframe to fully load...');
+    console.log("[USER-DASHBOARD] Waiting for iframe to fully load...");
     await new Promise((resolve) => {
       const iframe = ui.getIframe();
-      if (iframe.contentDocument?.readyState === 'complete') {
+      if (iframe.contentDocument?.readyState === "complete") {
         resolve(undefined);
       } else {
-        iframe.addEventListener('load', () => resolve(undefined), { once: true });
+        iframe.addEventListener("load", () => resolve(undefined), {
+          once: true,
+        });
       }
     });
-    
+
     // Add additional delay to ensure iframe script is fully initialized
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    console.log('[USER-DASHBOARD] Preparing transport...');
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    console.log("[USER-DASHBOARD] Preparing transport...");
     await transport.prepareToConnect();
-    console.log('[USER-DASHBOARD] Transport prepared');
-    
-    console.log('[USER-DASHBOARD] Connecting MCP server to transport...');
+    console.log("[USER-DASHBOARD] Transport prepared");
+
+    console.log("[USER-DASHBOARD] Connecting MCP server to transport...");
     await server.connect(transport);
-    
-    console.log('[USER-DASHBOARD] AI Copilot initialized successfully');
+
+    console.log("[USER-DASHBOARD] AI Copilot initialized successfully");
     ui.showConnected();
   };
 
@@ -391,19 +449,21 @@ async function initializeCopilot() {
     // Set a 30 second timeout for initialization
     await Promise.race([
       initializeWithTimeout(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Initialization timeout after 30 seconds')), 30000)
-      )
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Initialization timeout after 30 seconds")),
+          30000
+        )
+      ),
     ]);
-    
   } catch (error) {
     clearTimeout(fallbackTimeout);
-    console.error('[USER-DASHBOARD] Failed to initialize copilot:', error);
+    console.error("[USER-DASHBOARD] Failed to initialize copilot:", error);
     if (error instanceof Error) {
-      console.error('[USER-DASHBOARD] Error details:', {
+      console.error("[USER-DASHBOARD] Error details:", {
         message: error.message,
         stack: error.stack,
-        name: error.name
+        name: error.name,
       });
     }
     ui.showError();
@@ -414,24 +474,28 @@ async function initializeCopilot() {
 (window as any).initializeCopilot = initializeCopilot;
 
 // Auto-initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('[USER-DASHBOARD] Page loaded, initializing copilot...');
-  
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("[USER-DASHBOARD] Page loaded, initializing copilot...");
+
   // Listen for copilot ready signal
-  window.addEventListener('message', (event) => {
-    console.log('[USER-DASHBOARD] Received message:', event.data);
-    if (event.data?.type === 'copilot-ready') {
-      console.log('[USER-DASHBOARD] Copilot is ready - ensuring iframe is visible');
-      const iframe = document.getElementById('copilot-iframe') as HTMLIFrameElement;
-      const loading = document.getElementById('loading-state') as HTMLElement;
+  window.addEventListener("message", (event) => {
+    console.log("[USER-DASHBOARD] Received message:", event.data);
+    if (event.data?.type === "copilot-ready") {
+      console.log(
+        "[USER-DASHBOARD] Copilot is ready - ensuring iframe is visible"
+      );
+      const iframe = document.getElementById(
+        "copilot-iframe"
+      ) as HTMLIFrameElement;
+      const loading = document.getElementById("loading-state") as HTMLElement;
       if (iframe && loading) {
-        iframe.style.display = 'block';
-        loading.style.display = 'none';
+        iframe.style.display = "block";
+        loading.style.display = "none";
       }
     }
   });
-  
+
   initializeCopilot();
 });
 
-console.log('[USER-DASHBOARD] User Dashboard server script loaded');
+console.log("[USER-DASHBOARD] User Dashboard server script loaded");
