@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simple Copilot Test</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        font-family: Arial, sans-serif;
+      }
+      iframe {
+        width: 100%;
+        height: 500px;
+        border: 1px solid #ccc;
+      }
+      .status {
+        padding: 10px;
+        background: #f0f0f0;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Simple AI Copilot Test</h1>
+    <div class="status" id="status">Loading...</div>
+    <iframe id="copilot" src="/inverted/ai-copilot" title="AI Copilot"></iframe>
+
+    <script>
+      const iframe = document.getElementById("copilot");
+      const status = document.getElementById("status");
+
+      iframe.addEventListener("load", () => {
+        status.textContent = "Copilot loaded successfully!";
+        status.style.background = "#d4edda";
+      });
+
+      iframe.addEventListener("error", () => {
+        status.textContent = "Error loading copilot";
+        status.style.background = "#f8d7da";
+      });
+
+      // Timeout fallback
+      setTimeout(() => {
+        if (status.textContent === "Loading...") {
+          status.textContent = "Copilot should be visible now (timeout)";
+          status.style.background = "#fff3cd";
+        }
+      }, 3000);
+    </script>
+  </body>
+</html>

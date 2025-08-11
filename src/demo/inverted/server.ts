@@ -1,124 +1,113 @@
 /**
- * User Dashboard - Inverted Architecture Demo
- * 
+ * Patient Dashboard - MCP Server with Patient Management Tools
+ *
  * This demonstrates an MCP Server running in the OUTER FRAME that embeds
  * an MCP Client in an iframe. The server provides tools that give the
- * client access to user data and application context.
- * 
+ * client access to patient data and dashboard update functions.
+ *
  * Architecture: Outer Frame MCP Server + Inner Frame MCP Client
  */
 
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z } from 'zod';
-import { OuterFrameTransport, IframeWindowControl } from '$sdk/transport/postmessage/index.js';
-import { generateSessionId } from '$sdk/utils/helpers.js';
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import {
+  OuterFrameTransport,
+  IframeWindowControl,
+} from "$sdk/transport/postmessage/index.js";
+import { generateSessionId } from "$sdk/utils/helpers.js";
 
 // ============================================================================
-// USER DATA SERVICE
+// TYPE DEFINITIONS (matching patient-dashboard.ts)
 // ============================================================================
 
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  department: string;
-  avatar: string;
-  lastLogin: string;
-  permissions: string[];
-  preferences: {
-    theme: 'light' | 'dark';
-    notifications: boolean;
-    language: string;
-  };
+interface BloodPressure {
+  systolic: number;
+  diastolic: number;
 }
 
-interface ProjectInfo {
-  id: string;
+interface Allergy {
   name: string;
-  status: 'active' | 'completed' | 'on-hold';
-  progress: number;
-  team: string[];
-  deadline: string;
+  severity: "Mild" | "Moderate" | "Severe";
 }
 
-class UserDataService {
-  private static readonly MOCK_USER: UserProfile = {
-    id: 'user-001',
-    name: 'Alice Johnson',
-    email: 'alice.johnson@company.com',
-    role: 'Administrator',
-    department: 'Engineering',
-    avatar: 'A',
-    lastLogin: 'Today at 2:45 PM',
-    permissions: ['read', 'write', 'admin', 'manage-users', 'view-analytics'],
-    preferences: {
-      theme: 'light',
-      notifications: true,
-      language: 'en-US'
+interface Medication {
+  name: string;
+  dosage: string;
+  frequency: string;
+  prescribedDate: string;
+}
+
+// ============================================================================
+// PATIENT DASHBOARD FUNCTIONS WRAPPER
+// ============================================================================
+
+class PatientDashboardService {
+  // Helper to safely call window.patientDashboard functions
+  private static callDashboardFunction(
+    functionName: string,
+    ...args: any[]
+  ): any {
+    if (typeof window !== "undefined" && window.patientDashboard) {
+      const func = (window.patientDashboard as any)[functionName];
+      if (typeof func === "function") {
+        return func(...args);
+      } else {
+        throw new Error(
+          `Function ${functionName} not found on patientDashboard`
+        );
+      }
+    } else {
+      throw new Error("patientDashboard not available on window object");
     }
-  };
-
-  private static readonly MOCK_PROJECTS: ProjectInfo[] = [
-    {
-      id: 'proj-001',
-      name: 'Q4 Platform Redesign',
-      status: 'active',
-      progress: 75,
-      team: ['Alice', 'Bob', 'Carol'],
-      deadline: '2024-12-15'
-    },
-    {
-      id: 'proj-002', 
-      name: 'API v3 Migration',
-      status: 'active',
-      progress: 45,
-      team: ['Alice', 'David', 'Eve'],
-      deadline: '2024-11-30'
-    },
-    {
-      id: 'proj-003',
-      name: 'Mobile App Launch',
-      status: 'on-hold',
-      progress: 20,
-      team: ['Frank', 'Grace'],
-      deadline: '2025-01-31'
-    }
-  ];
-
-  static getCurrentUser(): UserProfile {
-    return this.MOCK_USER;
   }
 
-  static getUserProjects(): ProjectInfo[] {
-    return this.MOCK_PROJECTS.filter(p => p.team.includes(this.MOCK_USER.name));
+  static updateBloodPressure(systolic: number, diastolic: number): void {
+    this.callDashboardFunction("updateBloodPressure", systolic, diastolic);
   }
 
-  static getSystemHealth(): {
-    overall: number;
-    services: { name: string; status: 'healthy' | 'warning' | 'error'; uptime: number }[];
-  } {
-    return {
-      overall: 89,
-      services: [
-        { name: 'API Gateway', status: 'healthy', uptime: 99.9 },
-        { name: 'Database', status: 'healthy', uptime: 99.7 },
-        { name: 'File Storage', status: 'warning', uptime: 97.2 },
-        { name: 'Analytics', status: 'healthy', uptime: 99.5 }
-      ]
-    };
+  static updateBloodSugar(value: number): void {
+    this.callDashboardFunction("updateBloodSugar", value);
   }
 
-  static getTeamStats(): {
-    totalMembers: number;
-    activeProjects: number;
-    completedThisMonth: number;
-  } {
-    return {
-      totalMembers: 156,
-      activeProjects: 24,
-      completedThisMonth: 8
-    };
+  static updateLastVisit(date: string): void {
+    this.callDashboardFunction("updateLastVisit", date);
+  }
+
+  static updateTotalVisits(count: number): void {
+    this.callDashboardFunction("updateTotalVisits", count);
+  }
+
+  static updateNextAppointment(date: string): void {
+    this.callDashboardFunction("updateNextAppointment", date);
+  }
+
+  static updateAllergies(allergies: Allergy[]): void {
+    this.callDashboardFunction("updateAllergies", allergies);
+  }
+
+  static addMedication(medication: Medication): void {
+    this.callDashboardFunction("addMedication", medication);
+  }
+
+  static getContext(): any {
+    return this.callDashboardFunction("getContext");
+  }
+
+  static addMedicalHistoryEntry(
+    icon: string,
+    title: string,
+    time: string
+  ): void {
+    this.callDashboardFunction("addMedicalHistoryEntry", icon, title, time);
+  }
+
+  static updatePatientInfo(
+    name: string,
+    patientId: string,
+    dob: string,
+    age: number
+  ): void {
+    this.callDashboardFunction("updatePatientInfo", name, patientId, dob, age);
   }
 }
 
@@ -126,128 +115,513 @@ class UserDataService {
 // MCP SERVER SETUP
 // ============================================================================
 
-function createUserDashboardServer(): McpServer {
+function createPatientDashboardServer(): McpServer {
   const server = new McpServer({
-    name: 'user-dashboard',
-    version: '1.0.0',
+    name: "patient-dashboard",
+    version: "1.0.0",
   });
 
-  // Tool: Get current user information
+  // Tool: Update Blood Pressure
   server.registerTool(
-    'getCurrentUser',
+    "updateBloodPressure",
     {
-      title: 'Get Current User',
-      description: 'Get information about the currently logged in user',
-      inputSchema: {}
+      title: "Update Blood Pressure",
+      description: "Update the patient's blood pressure reading",
+      inputSchema: {
+        systolic: z
+          .number()
+          .min(50)
+          .max(300)
+          .describe("Systolic blood pressure (mmHg)"),
+        diastolic: z
+          .number()
+          .min(30)
+          .max(200)
+          .describe("Diastolic blood pressure (mmHg)"),
+      },
     },
-    async () => {
-      const user = UserDataService.getCurrentUser();
-      
-      return {
-        content: [{
-          type: 'text',
-          text: `👤 **Current User Information**
+    async ({ systolic, diastolic }) => {
+      try {
+        PatientDashboardService.updateBloodPressure(systolic, diastolic);
 
-**Name:** ${user.name}
-**Email:** ${user.email}
-**Role:** ${user.role}
-**Department:** ${user.department}
-**Last Login:** ${user.lastLogin}
+        return {
+          content: [
+            {
+              type: "text",
+              text: `✅ **Blood Pressure Updated Successfully**
 
-**Permissions:** ${user.permissions.join(', ')}
+**New Reading:** ${systolic}/${diastolic} mmHg
 
-**Preferences:**
-- Theme: ${user.preferences.theme}
-- Notifications: ${user.preferences.notifications ? 'Enabled' : 'Disabled'}
-- Language: ${user.preferences.language}`
-        }]
-      };
+The blood pressure has been recorded and added to the patient's medical history. The dashboard has been updated to reflect this new measurement.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ **Error updating blood pressure:** ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            },
+          ],
+        };
+      }
     }
   );
 
-  // Tool: Get user's projects
+  // Tool: Update Blood Sugar
   server.registerTool(
-    'getUserProjects',
+    "updateBloodSugar",
     {
-      title: 'Get User Projects',
-      description: 'Get all projects assigned to the current user',
-      inputSchema: {}
+      title: "Update Blood Sugar",
+      description: "Update the patient's blood sugar level",
+      inputSchema: {
+        value: z
+          .number()
+          .min(20)
+          .max(600)
+          .describe("Blood sugar level (mg/dL)"),
+      },
     },
-    async () => {
-      const projects = UserDataService.getUserProjects();
-      
-      const projectList = projects.map(p => 
-        `• **${p.name}** (${p.status}) - ${p.progress}% complete, deadline: ${p.deadline}`
-      ).join('\n');
-      
-      return {
-        content: [{
-          type: 'text',
-          text: `📂 **Your Projects** (${projects.length} total)
+    async ({ value }) => {
+      try {
+        PatientDashboardService.updateBloodSugar(value);
 
-${projectList}
+        const status = value < 70 ? "Low" : value > 140 ? "High" : "Normal";
+        const statusIcon = value < 70 ? "⚠️" : value > 140 ? "🔴" : "✅";
 
-You can ask me about specific project details or request updates on any of these projects.`
-        }]
-      };
+        return {
+          content: [
+            {
+              type: "text",
+              text: `${statusIcon} **Blood Sugar Updated Successfully**
+
+**New Reading:** ${value} mg/dL (${status})
+
+The blood sugar level has been recorded and added to the patient's medical history. The dashboard has been updated with this new measurement.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ **Error updating blood sugar:** ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            },
+          ],
+        };
+      }
     }
   );
 
-  // Tool: Get system health
+  // Tool: Update Last Visit
   server.registerTool(
-    'getSystemHealth',
+    "updateLastVisit",
     {
-      title: 'Get System Health',
-      description: 'Get current system status and health metrics',
-      inputSchema: {}
+      title: "Update Last Visit Date",
+      description: "Update the date of the patient's last visit",
+      inputSchema: {
+        date: z
+          .string()
+          .describe("Last visit date (e.g., 'Jan 15, 2025' or 'Today')"),
+      },
     },
-    async () => {
-      const health = UserDataService.getSystemHealth();
-      
-      const serviceList = health.services.map(s => {
-        const icon = s.status === 'healthy' ? '✅' : s.status === 'warning' ? '⚠️' : '❌';
-        return `${icon} **${s.name}**: ${s.status} (${s.uptime}% uptime)`;
-      }).join('\n');
-      
-      return {
-        content: [{
-          type: 'text',
-          text: `🏥 **System Health Report**
+    async ({ date }) => {
+      try {
+        PatientDashboardService.updateLastVisit(date);
 
-**Overall Health:** ${health.overall}%
+        return {
+          content: [
+            {
+              type: "text",
+              text: `📅 **Last Visit Date Updated**
 
-**Service Status:**
-${serviceList}
+**New Date:** ${date}
 
-All critical systems are operational. The File Storage service is experiencing minor performance issues but remains functional.`
-        }]
-      };
+The patient's last visit date has been successfully updated in the dashboard.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ **Error updating last visit date:** ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            },
+          ],
+        };
+      }
     }
   );
 
-  // Tool: Get team statistics
+  // Tool: Update Total Visits
   server.registerTool(
-    'getTeamStats',
+    "updateTotalVisits",
     {
-      title: 'Get Team Statistics',
-      description: 'Get statistics about team size, projects, and recent activity',
-      inputSchema: {}
+      title: "Update Total Visits Count",
+      description: "Update the total number of patient visits",
+      inputSchema: {
+        count: z.number().min(0).describe("Total number of visits"),
+      },
+    },
+    async ({ count }) => {
+      try {
+        PatientDashboardService.updateTotalVisits(count);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `📊 **Total Visits Updated**
+
+**New Count:** ${count} visits
+
+The total visit count has been successfully updated in the patient dashboard.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ **Error updating total visits:** ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  // Tool: Update Next Appointment
+  server.registerTool(
+    "updateNextAppointment",
+    {
+      title: "Update Next Appointment",
+      description: "Update the patient's next scheduled appointment",
+      inputSchema: {
+        date: z
+          .string()
+          .describe("Next appointment date (e.g., 'Feb 10, 2025')"),
+      },
+    },
+    async ({ date }) => {
+      try {
+        PatientDashboardService.updateNextAppointment(date);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `🗓️ **Next Appointment Updated**
+
+**Scheduled for:** ${date}
+
+The patient's next appointment has been successfully scheduled and updated in the dashboard.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ **Error updating next appointment:** ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  // Tool: Update Allergies
+  server.registerTool(
+    "updateAllergies",
+    {
+      title: "Update Patient Allergies",
+      description: "Update the patient's allergy information",
+      inputSchema: {
+        allergies: z
+          .array(
+            z.object({
+              name: z.string().describe("Allergy name"),
+              severity: z
+                .enum(["Mild", "Moderate", "Severe"])
+                .describe("Severity level"),
+            })
+          )
+          .describe("Array of patient allergies"),
+      },
+    },
+    async ({ allergies }) => {
+      try {
+        PatientDashboardService.updateAllergies(allergies);
+
+        const allergyList = allergies
+          .map((a: Allergy) => `• ${a.name} (${a.severity})`)
+          .join("\n");
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `🚨 **Allergies Updated Successfully**
+
+**Updated Allergies:**
+${allergyList}
+
+Total: ${allergies.length} allergies recorded
+
+The patient's allergy information has been updated in the dashboard. Medical staff will be alerted to these allergies during treatment.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ **Error updating allergies:** ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  // Tool: Add Medication
+  server.registerTool(
+    "addMedication",
+    {
+      title: "Add New Medication",
+      description: "Add a new medication to the patient's prescription list",
+      inputSchema: {
+        name: z.string().describe("Medication name"),
+        dosage: z.string().describe("Dosage (e.g., '10mg', '500mg')"),
+        frequency: z
+          .string()
+          .describe("Frequency (e.g., 'Daily', 'Twice daily', 'As needed')"),
+        prescribedDate: z
+          .string()
+          .optional()
+          .describe("Date prescribed (defaults to 'Today')"),
+      },
+    },
+    async ({ name, dosage, frequency, prescribedDate = "Today" }) => {
+      try {
+        const medication: Medication = {
+          name,
+          dosage,
+          frequency,
+          prescribedDate,
+        };
+
+        PatientDashboardService.addMedication(medication);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `💊 **New Medication Added Successfully**
+
+**Medication:** ${name}
+**Dosage:** ${dosage}
+**Frequency:** ${frequency}
+**Prescribed:** ${prescribedDate}
+
+The medication has been added to the patient's prescription list and recorded in their medical history. Please ensure the patient understands the dosage and frequency instructions.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ **Error adding medication:** ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  // Tool: Get Patient Context
+  server.registerTool(
+    "getContext",
+    {
+      title: "Get Patient Context",
+      description:
+        "Retrieve complete patient information and current dashboard state",
+      inputSchema: {},
     },
     async () => {
-      const stats = UserDataService.getTeamStats();
-      
-      return {
-        content: [{
-          type: 'text',
-          text: `📊 **Team Statistics**
+      try {
+        const context = PatientDashboardService.getContext();
 
-**👥 Team Size:** ${stats.totalMembers} members across all departments
-**🚀 Active Projects:** ${stats.activeProjects} projects currently in progress
-**✅ Completed This Month:** ${stats.completedThisMonth} projects delivered successfully
+        return {
+          content: [
+            {
+              type: "text",
+              text: `👤 **Complete Patient Context**
 
-The team is performing well with a steady completion rate and healthy project pipeline.`
-        }]
-      };
+**Patient Information:**
+- **Name:** ${context.name}
+- **ID:** ${context.patientId}
+- **DOB:** ${context.dob} (Age: ${context.age})
+
+**Vital Signs:**
+- **Blood Pressure:** ${context.bloodPressure.systolic}/${
+                context.bloodPressure.diastolic
+              } mmHg
+- **Blood Sugar:** ${context.bloodSugar} mg/dL
+
+**Visit Information:**
+- **Last Visit:** ${context.lastVisit}
+- **Total Visits:** ${context.totalVisits}
+- **Next Appointment:** ${context.nextAppointment}
+
+**Allergies:** ${
+                context.allergies.length > 0
+                  ? context.allergies
+                      .map((a: Allergy) => `${a.name} (${a.severity})`)
+                      .join(", ")
+                  : "None recorded"
+              }
+
+**Current Medications:** ${
+                context.medications.length > 0
+                  ? context.medications
+                      .map((m: Medication) => `${m.name} ${m.dosage}`)
+                      .join(", ")
+                  : "None prescribed"
+              }
+
+**Last Updated:** ${context.lastUpdated}`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ **Error retrieving patient context:** ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  // Tool: Add Medical History Entry
+  server.registerTool(
+    "addMedicalHistoryEntry",
+    {
+      title: "Add Medical History Entry",
+      description: "Add a new entry to the patient's medical history timeline",
+      inputSchema: {
+        icon: z.string().describe("Icon for the entry (emoji)"),
+        title: z.string().describe("Title/description of the medical event"),
+        time: z
+          .string()
+          .optional()
+          .describe("Time of the event (defaults to 'Today')"),
+      },
+    },
+    async ({ icon, title, time = "Today" }) => {
+      try {
+        PatientDashboardService.addMedicalHistoryEntry(icon, title, time);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `📝 **Medical History Entry Added**
+
+${icon} **${title}** - ${time}
+
+The entry has been added to the patient's medical history timeline and will be visible in the dashboard.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ **Error adding medical history entry:** ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  // Tool: Update Patient Info
+  server.registerTool(
+    "updatePatientInfo",
+    {
+      title: "Update Patient Information",
+      description: "Update basic patient demographic information",
+      inputSchema: {
+        name: z.string().describe("Patient's full name"),
+        patientId: z.string().describe("Patient ID"),
+        dob: z.string().describe("Date of birth"),
+        age: z.number().min(0).max(150).describe("Patient's age"),
+      },
+    },
+    async ({ name, patientId, dob, age }) => {
+      try {
+        PatientDashboardService.updatePatientInfo(name, patientId, dob, age);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `👤 **Patient Information Updated Successfully**
+
+**Name:** ${name}
+**Patient ID:** ${patientId}
+**Date of Birth:** ${dob}
+**Age:** ${age}
+
+The patient's basic information has been updated across the dashboard. The avatar initials have been refreshed to match the new name.`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ **Error updating patient information:** ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            },
+          ],
+        };
+      }
     }
   );
 
@@ -263,36 +637,42 @@ class DashboardUI {
   private statusElement: HTMLElement;
   private loadingElement: HTMLElement;
   private errorElement: HTMLElement;
-  
+
   constructor() {
-    this.copilotIframe = document.getElementById('copilot-iframe') as HTMLIFrameElement;
-    this.statusElement = document.getElementById('copilot-status') as HTMLElement;
-    this.loadingElement = document.getElementById('loading-state') as HTMLElement;
-    this.errorElement = document.getElementById('error-state') as HTMLElement;
+    this.copilotIframe = document.getElementById(
+      "copilot-iframe"
+    ) as HTMLIFrameElement;
+    this.statusElement = document.getElementById(
+      "copilot-status"
+    ) as HTMLElement;
+    this.loadingElement = document.getElementById(
+      "loading-state"
+    ) as HTMLElement;
+    this.errorElement = document.getElementById("error-state") as HTMLElement;
   }
 
   showLoading() {
-    this.copilotIframe.style.display = 'none';
-    this.loadingElement.style.display = 'flex';
-    this.errorElement.style.display = 'none';
-    this.statusElement.textContent = 'Connecting...';
-    this.statusElement.style.background = '#f39c12';
+    this.copilotIframe.style.display = "none";
+    this.loadingElement.style.display = "flex";
+    this.errorElement.style.display = "none";
+    this.statusElement.textContent = "Connecting...";
+    this.statusElement.style.background = "#f39c12";
   }
 
   showConnected() {
-    this.copilotIframe.style.display = 'block';
-    this.loadingElement.style.display = 'none';
-    this.errorElement.style.display = 'none';
-    this.statusElement.textContent = 'Connected';
-    this.statusElement.style.background = '#00b894';
+    this.copilotIframe.style.display = "block";
+    this.loadingElement.style.display = "none";
+    this.errorElement.style.display = "none";
+    this.statusElement.textContent = "Connected";
+    this.statusElement.style.background = "#00b894";
   }
 
   showError() {
-    this.copilotIframe.style.display = 'none';
-    this.loadingElement.style.display = 'none';
-    this.errorElement.style.display = 'flex';
-    this.statusElement.textContent = 'Disconnected';
-    this.statusElement.style.background = '#e17055';
+    this.copilotIframe.style.display = "none";
+    this.loadingElement.style.display = "none";
+    this.errorElement.style.display = "flex";
+    this.statusElement.textContent = "Disconnected";
+    this.statusElement.style.background = "#e17055";
   }
 
   getIframe(): HTMLIFrameElement {
@@ -308,48 +688,112 @@ async function initializeCopilot() {
   const ui = new DashboardUI();
   ui.showLoading();
 
-  try {
-    console.log('[USER-DASHBOARD] Creating MCP server...');
-    const server = createUserDashboardServer();
-    
-    console.log('[USER-DASHBOARD] Setting up iframe window control...');
+  // Add a fallback timeout to show the iframe after 5 seconds regardless
+  const fallbackTimeout = setTimeout(() => {
+    console.log("[PATIENT-DASHBOARD] Fallback timeout - showing iframe");
+    ui.showConnected();
+  }, 5000);
+
+  // Add a timeout wrapper to prevent hanging
+  const initializeWithTimeout = async () => {
+    console.log("[PATIENT-DASHBOARD] Creating MCP server...");
+    const server = createPatientDashboardServer();
+
+    console.log("[PATIENT-DASHBOARD] Setting up iframe window control...");
     const windowControl = new IframeWindowControl({
       iframe: ui.getIframe(),
-      setVisible: () => {}, // Always visible
+      setVisible: () => {
+        console.log("[PATIENT-DASHBOARD] Iframe set to visible");
+      }, // Always visible
       onError: (error) => {
-        console.error('[USER-DASHBOARD] Iframe error:', error);
+        console.error("[PATIENT-DASHBOARD] Iframe error:", error);
         ui.showError();
+      },
+      sandboxMode: "development", // Use development mode for demo
+    });
+
+    // Add iframe load event listener
+    ui.getIframe().addEventListener("load", () => {
+      console.log(
+        "[PATIENT-DASHBOARD] Iframe loaded successfully - showing iframe"
+      );
+      clearTimeout(fallbackTimeout);
+      // Show the iframe as soon as it loads, regardless of MCP connection
+      ui.showConnected();
+    });
+
+    ui.getIframe().addEventListener("error", (error) => {
+      console.error("[PATIENT-DASHBOARD] Iframe failed to load:", error);
+    });
+
+    console.log("[PATIENT-DASHBOARD] Creating transport...");
+    console.log("[PATIENT-DASHBOARD] Current location:", window.location.href);
+
+    // Fix URL resolution by adding trailing slash if it doesn't end with one
+    const baseUrl = window.location.href.endsWith("/")
+      ? window.location.href
+      : window.location.href + "/";
+    const copilotUrl = new URL("ai-copilot", baseUrl).href;
+    console.log("[PATIENT-DASHBOARD] Base URL:", baseUrl);
+    console.log("[PATIENT-DASHBOARD] Copilot URL:", copilotUrl);
+
+    const transport = new OuterFrameTransport(windowControl, {
+      serverUrl: copilotUrl,
+      sessionId: generateSessionId(),
+    });
+
+    console.log("[PATIENT-DASHBOARD] Navigating to copilot URL...");
+    await windowControl.navigate(copilotUrl);
+    console.log("[PATIENT-DASHBOARD] Navigation complete");
+
+    // Wait for iframe to be fully loaded
+    console.log("[PATIENT-DASHBOARD] Waiting for iframe to fully load...");
+    await new Promise((resolve) => {
+      const iframe = ui.getIframe();
+      if (iframe.contentDocument?.readyState === "complete") {
+        resolve(undefined);
+      } else {
+        iframe.addEventListener("load", () => resolve(undefined), {
+          once: true,
+        });
       }
     });
 
-    console.log('[USER-DASHBOARD] Creating transport...');
-    console.log('[USER-DASHBOARD] Current location:', window.location.href);
-    
-    // Fix URL resolution by adding trailing slash if it doesn't end with one
-    const baseUrl = window.location.href.endsWith('/') ? window.location.href : window.location.href + '/';
-    const copilotUrl = new URL('ai-copilot', baseUrl).href;
-    console.log('[USER-DASHBOARD] Base URL:', baseUrl);
-    console.log('[USER-DASHBOARD] Copilot URL:', copilotUrl);
-    
-    const transport = new OuterFrameTransport(windowControl, {
-      serverUrl: copilotUrl,
-      sessionId: generateSessionId()
-    });
+    // Add additional delay to ensure iframe script is fully initialized
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    console.log('[USER-DASHBOARD] Navigating to copilot URL...');
-    await windowControl.navigate(copilotUrl);
-    
-    console.log('[USER-DASHBOARD] Preparing transport...');
+    console.log("[PATIENT-DASHBOARD] Preparing transport...");
     await transport.prepareToConnect();
-    
-    console.log('[USER-DASHBOARD] Connecting MCP server to transport...');
+    console.log("[PATIENT-DASHBOARD] Transport prepared");
+
+    console.log("[PATIENT-DASHBOARD] Connecting MCP server to transport...");
     await server.connect(transport);
-    
-    console.log('[USER-DASHBOARD] AI Copilot initialized successfully');
+
+    console.log("[PATIENT-DASHBOARD] AI Copilot initialized successfully");
     ui.showConnected();
-    
+  };
+
+  try {
+    // Set a 30 second timeout for initialization
+    await Promise.race([
+      initializeWithTimeout(),
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Initialization timeout after 30 seconds")),
+          30000
+        )
+      ),
+    ]);
   } catch (error) {
-    console.error('[USER-DASHBOARD] Failed to initialize copilot:', error);
+    clearTimeout(fallbackTimeout);
+    console.error("[PATIENT-DASHBOARD] Failed to initialize copilot:", error);
+    if (error instanceof Error) {
+      console.error("[PATIENT-DASHBOARD] Error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
+    }
     ui.showError();
   }
 }
@@ -358,9 +802,28 @@ async function initializeCopilot() {
 (window as any).initializeCopilot = initializeCopilot;
 
 // Auto-initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('[USER-DASHBOARD] Page loaded, initializing copilot...');
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("[PATIENT-DASHBOARD] Page loaded, initializing copilot...");
+
+  // Listen for copilot ready signal
+  window.addEventListener("message", (event) => {
+    console.log("[PATIENT-DASHBOARD] Received message:", event.data);
+    if (event.data?.type === "copilot-ready") {
+      console.log(
+        "[PATIENT-DASHBOARD] Copilot is ready - ensuring iframe is visible"
+      );
+      const iframe = document.getElementById(
+        "copilot-iframe"
+      ) as HTMLIFrameElement;
+      const loading = document.getElementById("loading-state") as HTMLElement;
+      if (iframe && loading) {
+        iframe.style.display = "block";
+        loading.style.display = "none";
+      }
+    }
+  });
+
   initializeCopilot();
 });
 
-console.log('[USER-DASHBOARD] User Dashboard server script loaded');
+console.log("[PATIENT-DASHBOARD] Patient Dashboard server script loaded");

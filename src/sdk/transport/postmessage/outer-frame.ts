@@ -722,9 +722,10 @@ export class OuterFrameTransport implements Transport {
                 );
 
                 const negotiatedVersion = negotiateVersion(
+                  "1.0", // client min version
+                  "1.0", // client max version
                   handshake.minProtocolVersion,
-                  handshake.maxProtocolVersion,
-                  supportedVersions
+                  handshake.maxProtocolVersion
                 );
 
                 console.log(

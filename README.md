@@ -9,12 +9,14 @@ This is a reference implementation for a **proposed new transport** for the Mode
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - [Bun](https://bun.sh) installed
 - Modern web browser
 
 ### Running the Demo
 
 1. **Install dependencies:**
+
    ```bash
    bun install
    ```
@@ -28,25 +30,33 @@ This is a reference implementation for a **proposed new transport** for the Mode
 ### Building for Production
 
 1. **Build the complete demo application:**
+
    ```bash
    bun run build
    ```
+
    This creates a `dist/` folder with all assets bundled for deployment.
 
 2. **Preview the built application:**
+
    ```bash
    bun run preview
    ```
 
 3. **Deploy to GitHub Pages:**
    The repository includes GitHub Actions that automatically deploy to GitHub Pages on push to main branch.
+
+   ```
+
    ```
 
 4. **Open your browser:**
-   - Client: http://localhost:3000
-   - Pi Calculator: http://localhost:3001
+   - Standard Demo: http://localhost:3000
+   - Inverted Demo (with OpenAI): http://localhost:3000/inverted
 
 ## 🎯 Demo Instructions
+
+### Standard Architecture Demo
 
 1. **Open the client** at http://localhost:3000
 2. **Add the Pi Calculator server** (should be pre-configured):
@@ -55,15 +65,28 @@ This is a reference implementation for a **proposed new transport** for the Mode
 4. **Click "Connect"** to establish MCP connection
 5. **Try the interactive Pi calculation** with Monte Carlo visualization
 
+### Inverted Architecture Demo (AI Copilot)
+
+1. **Open the inverted demo** at http://localhost:3000/inverted
+2. **The AI copilot loads automatically** in the embedded iframe
+3. **Optional: Configure OpenAI** by clicking the settings (⚙️) button
+4. **Try asking questions** like "Who am I?" or "What are my projects?"
+
+## 🤖 OpenAI Integration
+
+The inverted architecture demo includes an AI copilot powered by OpenAI that can intelligently interact with the user dashboard. See [OPENAI_INTEGRATION.md](./OPENAI_INTEGRATION.md) for detailed information.
+
 ## 📋 What This Demonstrates
 
 ### postMessage Transport Features
+
 - **Zero Installation**: Servers run directly in browser
 - **Two-Phase Protocol**: Setup → Transport phases
 - **Security**: Origin validation and message routing
 - **Visibility Control**: Optional/required/hidden server UI
 
 ### Pi Calculator Server
+
 - **MCP Tool**: `calculate_pi` method with configurable iterations
 - **Interactive UI**: Real-time Monte Carlo visualization
 - **Progressive Calculation**: Live progress updates
@@ -85,6 +108,7 @@ This is a reference implementation for a **proposed new transport** for the Mode
 ## 🔧 Developing
 
 ### Prerequisites
+
 - [Bun](https://bun.sh) installed
 - Modern web browser
 
@@ -113,6 +137,7 @@ bun run demo
 The postMessage transport implements a two-phase connection model:
 
 1. **Setup Phase** (`#setup` parameter):
+
    - Server announces readiness
    - Client performs handshake
    - User completes configuration
