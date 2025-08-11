@@ -226,9 +226,7 @@ The blood sugar level has been recorded and added to the patient's medical histo
       title: "Update Last Visit Date",
       description: "Update the date of the patient's last visit",
       inputSchema: {
-        date: z
-          .string()
-          .describe("Last visit date (e.g., 'Jan 15, 2025' or 'Today')"),
+        date: z.string().describe("Last visit date (e.g., 'Jan 15, 2025')"),
       },
     },
     async ({ date }) => {
