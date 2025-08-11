@@ -154,17 +154,35 @@ function updateAllergies(allergies: Allergy[]): void {
   const allergyCountElement = document.getElementById("allergy-count");
 
   if (allergyItemsElement && allergyCountElement) {
-    // Update allergy list
-    const allergyList = allergies
+    // Append new allergies to existing ones, avoiding duplicates
+    allergies.forEach((newAllergy) => {
+      const existingAllergy = patientData.allergies.find(
+        (existing) =>
+          existing.name.toLowerCase() === newAllergy.name.toLowerCase()
+      );
+
+      if (!existingAllergy) {
+        // Add new allergy if it doesn't exist
+        patientData.allergies.push(newAllergy);
+      } else {
+        // Update severity if allergy already exists but severity is different
+        if (existingAllergy.severity !== newAllergy.severity) {
+          existingAllergy.severity = newAllergy.severity;
+          console.log(
+            `Updated severity for ${newAllergy.name} from ${existingAllergy.severity} to ${newAllergy.severity}`
+          );
+        }
+      }
+    });
+
+    // Update allergy list display
+    const allergyList = patientData.allergies
       .map((allergy) => `• ${allergy.name} (${allergy.severity})`)
       .join("<br>");
     allergyItemsElement.innerHTML = allergyList;
 
     // Update count
-    allergyCountElement.textContent = allergies.length.toString();
-
-    // Update internal data
-    patientData.allergies = allergies;
+    allergyCountElement.textContent = patientData.allergies.length.toString();
 
     console.log(`Allergies updated:`, allergies);
   }
