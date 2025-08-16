@@ -770,7 +770,6 @@ declare global {
     sendMessage: () => void;
     sendQuickMessage: (message: string) => void;
     reconnect: () => void;
-    copilotApp: CopilotApp;
     showConfig: () => void;
     hideConfig: () => void;
     saveApiKey: () => void;
